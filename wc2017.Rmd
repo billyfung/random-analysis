@@ -1,0 +1,76 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(ggplot2)
+library(ggridges)
+library(data.table)
+library(plotly)
+dat = fread('wc2017splits.csv')
+str(dat)
+```
+```{r}
+dat %>% filter(name=='MATTHEWS Michael')
+```
+
+Wide format, let's melt for lap positions and speed
+```{r}
+positions = melt(dat, id.vars=c('bib','name', 'nat'),measure=c('Lead In pos', 'Lap2 pos', 'Lap3 pos', 'Lap4 pos',  'Lap5 pos', 'Lap6 pos', 'Lap7 pos',  'Lap8 pos',  'Lap9 pos',  'Lap11 pos',  'Finish pos'), variable.name='lap', value.name='position')
+country_pos = positions %>% 
+ggplot() + geom_line(aes(x=lap, y=position, group=bib, colour=nat)) +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=8), panel.background=element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+  scale_y_reverse( lim=c(200,0))
+
+(pplotly <- ggplotly(country_pos))
+api_create(pplotly, filename = "WC 2017 by country", sharing="public")
+```
+Coolio
+Let's look at where the podium finishers did compared to their team
+```{r}
+positions %>% 
+  filter(nat %in% c('AUS', 'SVK', 'NOR')) %>%
+ggplot() + geom_line(aes(x=lap, y=position, group=bib, colour=nat)) +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=7)) + 
+  scale_y_reverse( lim=c(200,0)) +
+  ggtitle('AUS, NOR, SVK rider positions')
+  geom_line(data=positions[positions[,bib==1]], aes(lap, position, group=bib), size=1.4)
+```
+
+top 20 movement
+```{r}
+top10 = positions %>% filter(lap == "Finish pos" & position <= 10) %>% select(bib)
+p = positions %>% 
+  filter(bib %in% top20) %>%
+  ggplot() + geom_line(aes(x=lap, y=position, group=bib, colour=name)) +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=7)) + 
+  ggtitle('Top 20 finishers') + 
+  scale_y_reverse( lim=c(200,0)) +
+  geom_line(data=positions[positions[,bib==1]], aes(lap, position, group=bib), size=1.3)
+(pplotly <- ggplotly(p))
+api_create(pplotly, filename = "WC top 20 box plot", sharing="public")
+```
+Let's look at canada vs usa
+```{r}
+positions %>% 
+  filter(nat %in% c('CAN', 'USA')) %>%
+ggplot() + geom_line(aes(x=lap, y=position, group=bib, colour=name)) +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=7)) + 
+  scale_y_reverse( lim=c(200,0)) +
+  ggtitle('Canada vs USA')
+```
+
+Ok we need a joy plot
+```{r}
+ggplot(positions, aes(x = position, y = lap, fill=nat)) + 
+  geom_density_ridges(scale = 5) +
+  theme_minimal(base_size = 12) +
+  ggtitle('WC2017: Joyplot CAN vs USA') + 
+  scale_x_continuous(expand = c(0.01, 0)) +
+  scale_y_discrete(expand = c(0.01, 0))
+
+```
+
